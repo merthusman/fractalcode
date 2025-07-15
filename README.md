@@ -73,3 +73,5 @@ The script will produce a window showing two images side-by-side:
 Each image will be titled with its calculated fractal dimension (D_whole and D_part). The primary result of the simulation is the close agreement between these two values (D_whole ≈ D_part), providing strong computational evidence for the model's scale-invariant geometric identity.
 
 This project is a conceptual exploration into the axiomatic foundations of physics. It aims to provoke thought and offer a coherent alternative to the problem of arbitrariness in our fundamental theories.
+
+contact: husmanmert@gmail.com
