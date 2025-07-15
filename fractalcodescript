@@ -1,0 +1,213 @@
+# ==============================================================================
+# ANATOMY OF A UNIVERSE - FRACTAL CODE v37.3: ANNOTATED ENGLISH VERSION
+# ==============================================================================
+# PHILOSOPHICAL PRINCIPLES (ENGLISH):
+#
+# 1. CONTINUOUS PI-FIELD: The universe is not composed of binary (0/1) pixels,
+#    but of a potential field with continuous values. This prevents saturation
+#    and allows for the emergence of rich, organic textures.
+#
+# 2. PI-BASED PHYSICS: The evolution of the field is governed by a deterministic
+#    Reaction-Diffusion law where all constants (diffusion, reaction) are
+#    derived directly from the mathematical constant Pi.
+#
+# 3. RECURSIVE DETAILING: The fractal structure is constructed by a process
+#    of upscaling via smooth interpolation, followed by the addition of new
+#    details from Pi at each new scale. This creates a geometry that is
+#    self-similar yet contains new information at every level of magnification.
+# ==============================================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+import mpmath
+from scipy.ndimage import zoom
+from numba import jit
+
+# --- PART 1: THE SCIENTIFIC TOOL - FRACTAL DIMENSION CALCULATOR ---
+
+def fractal_dimension(grid):
+    """
+    Calculates the fractal dimension of a 2D grid using the robust box-counting method.
+    """
+    # Binarize the grid based on its own mean. This is a non-arbitrary, self-referential threshold.
+    threshold = np.mean(grid)
+    binary_grid = grid > threshold
+    
+    # If the grid is empty or completely full, it has no fractal structure.
+    if not np.any(binary_grid) or np.all(binary_grid):
+        return 0
+
+    L = binary_grid.shape[0]
+    # Define the box sizes for analysis, spaced logarithmically for efficiency.
+    scales = np.logspace(np.log2(2), np.log2(L/2), num=15, base=2, dtype=int)
+    scales = np.unique(scales[scales > 1])
+
+    # Not enough different scales to perform a regression.
+    if len(scales) < 2:
+        return 0
+    
+    counts = []
+    valid_scales = []
+    for s in scales:
+        # Crop the grid to be perfectly divisible by the current box size `s` to avoid errors.
+        rows = L // s
+        cols = L // s
+        if rows == 0 or cols == 0: continue
+            
+        cropped_grid = binary_grid[:rows*s, :cols*s]
+        
+        # Reshape the grid into blocks of size (s x s).
+        blocks = cropped_grid.reshape(rows, s, cols, s)
+        # Check if any pixel within each block is "on" (True) and sum the results.
+        count = np.sum(blocks.any(axis=(1, 3)))
+        
+        if count > 0:
+            counts.append(count)
+            valid_scales.append(s)
+
+    if len(counts) < 2:
+        return 0
+
+    # The relationship is N(s) ∝ s^(-D). In log-log space, log(N) = -D*log(s) + c.
+    # The slope of the line of log(counts) vs log(scales) is -D.
+    coeffs = np.polyfit(np.log(valid_scales), np.log(counts), 1)
+    # Therefore, the fractal dimension D is the negative of the slope.
+    return -coeffs[0]
+
+
+# --- PART 2: THE PI-FIELD PHYSICS ---
+
+@jit(nopython=True)
+def evolve_pi_field(grid):
+    """
+    Evolves the continuous Pi-Field for one step using a non-arbitrary,
+    Pi-based reaction-diffusion system.
+    """
+    # --- All physical constants are derived from Pi, ensuring no arbitrariness. ---
+    # Diffusion constant. Governs how fast information/potential spreads to neighbors.
+    D = 1.0 / np.pi
+    # Stability constant. Pulls values back towards the [-1, 1] range, preventing explosions.
+    A = np.pi
+    # Asymmetry/Chaos constant. Drives complexity by amplifying local differences.
+    B = np.pi**2
+    
+    new_grid = grid.copy()
+    size = grid.shape[0]
+    
+    for r in range(size):
+        for c in range(size):
+            # Get neighbors with periodic boundary conditions (a toroidal universe).
+            up, down = grid[(r-1)%size, c], grid[(r+1)%size, c]
+            left, right = grid[r, (c-1)%size], grid[r, (c+1)%size]
+            
+            # The Laplacian operator, representing the tendency to diffuse or smooth out.
+            laplacian = up + down + left + right - 4 * grid[r, c]
+            # The local average or "smoothed" state of the neighborhood.
+            smoothed = (grid[r, c] * 4 + up + down + left + right) / 8.0
+            
+            # --- The Reaction-Diffusion Equation ---
+            diffusion_term = D * laplacian
+            # The "Potential Well" force, providing stability via tanh function.
+            stability_term = -A * (grid[r, c] - np.tanh(grid[r, c]))
+            # The complexity-driving force, akin to the "Omega Engine".
+            asymmetry_term = B * (grid[r, c] - smoothed)
+            
+            # Apply the change using a simple Euler integration step.
+            new_grid[r, c] += 0.01 * (diffusion_term + stability_term + asymmetry_term)
+            
+    return new_grid
+
+
+# --- PART 3: THE FRACTAL UNIVERSE CONSTRUCTION PROCESS ---
+try:
+    # Generate a sufficient number of Pi digits, our non-arbitrary source of information.
+    num_digits = 500000
+    mpmath.mp.dps = num_digits
+    pi_val = mpmath.pi
+    PI_STR = str(pi_val)[2:]
+    pi_digits = np.array([int(d) for d in PI_STR])
+
+    print("--- FRACTAL TEXTURE SIMULATION (SELF-SIMILAR GEOMETRY) INITIALIZING ---")
+    start_time = time.time()
+    
+    # --- Simulation Parameters ---
+    # The final resolution of the universe grid. A power of 2 for clean scalability.
+    FINAL_SIZE = 256
+    # The initial resolution of the "seed" universe.
+    start_scale = 8
+    # Define the scales the universe will be constructed through.
+    scales_build = 2**np.arange(np.log2(start_scale), np.log2(FINAL_SIZE) + 1).astype(int)
+    
+    # A cursor to read from the endless digits of Pi, ensuring no information is reused.
+    pi_cursor = 0
+    def get_pi_noise(size):
+        """Fetches a block of Pi digits and converts it into a 2D noise array."""
+        # Use the global cursor to ensure we are reading a new part of Pi each time.
+        global pi_cursor
+        needed = size**2
+        if pi_cursor + needed > len(pi_digits):
+            raise ValueError("Not enough digits in the Pi string for this operation!")
+        # Normalize digits from the [0, 9] range to the [-1, 1] range.
+        noise = ((pi_digits[pi_cursor : pi_cursor + needed] - 4.5) / 4.5).reshape((size, size))
+        pi_cursor += needed
+        return noise
+
+    # 1. SEED: Create the initial, smallest-scale universe from Pi.
+    grid = get_pi_noise(start_scale)
+
+    # The recursive construction loop.
+    for i in range(len(scales_build) - 1):
+        current_size = scales_build[i]
+        next_size = scales_build[i+1]
+        
+        print(f"⏳ Evolving structure at scale {current_size}x{current_size}...")
+        # 2. EVOLVE: Apply the non-arbitrary physics laws to develop the structure at the current scale.
+        for _ in range(30): # Number of evolution steps at each scale.
+            grid = evolve_pi_field(grid)
+            # Normalize the grid to prevent values from exploding, maintaining stability.
+            std_dev = np.std(grid)
+            if std_dev > 1e-9:
+                grid = (grid - np.mean(grid)) / std_dev
+
+        print(f"🌿 Upscaling from {current_size}x{current_size} to {next_size}x{next_size}...")
+        # 3. GROW: Upscale the evolved structure to the next level using smooth interpolation.
+        zoom_factor = next_size / current_size
+        upscaled_grid = zoom(grid, zoom_factor, order=3) # 'order=3' for smooth cubic interpolation.
+        
+        # 4. DETAIL: Add new, finer details from Pi to the new scale.
+        new_detail_noise = get_pi_noise(next_size)
+        # The influence of new details decreases at larger scales, preserving the larger structures.
+        grid = upscaled_grid + new_detail_noise / (np.log2(next_size))
+
+    print("✅ Final universe texture successfully generated.")
+    
+    # --- PART 4: ANALYSIS AND VISUALIZATION ---
+    whole_universe = grid
+    
+    print("\n--- ANALYZING GEOMETRIC PROPERTIES ---")
+    D_whole = fractal_dimension(whole_universe)
+    print(f"Calculated Fractal Dimension (Whole): {D_whole:.4f}")
+
+    # The "Part" is defined as the top-left quadrant of the "Whole".
+    part_size = FINAL_SIZE // 2
+    part_of_universe = whole_universe[0:part_size, 0:part_size]
+    D_part = fractal_dimension(part_of_universe)
+    print(f"Calculated Fractal Dimension (Part): {D_part:.4f}")
+
+    # Visualize the results.
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 9))
+    fig.suptitle("Fractal Universe: The Geometric Identity of the Whole and the Part", fontsize=20)
+    
+    ax1.imshow(whole_universe, cmap='magma')
+    ax1.set_title(f"Structure of the Whole\nFractal Dimension (D_whole) ≈ {D_whole:.4f}", fontsize=16)
+    ax1.set_xticks([]); ax1.set_yticks([])
+    
+    ax2.imshow(part_of_universe, cmap='magma')
+    ax2.set_title(f"Structure of the Part (Top-Left Quadrant)\nFractal Dimension (D_part) ≈ {D_part:.4f}", fontsize=16)
+    ax2.set_xticks([]); ax2.set_yticks([])
+
+    plt.show()
+
+except Exception as e:
+    print(f"\n❌ AN UNEXPECTED SIMULATION ERROR OCCURRED: {e}")
